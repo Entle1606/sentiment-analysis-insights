@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sentiment Analysis Dashboard</title>
+<style>
+:root{--bg:#f6f8f7;--card:#fff;--ink:#17252a;--mute:#5d6f73;--line:#dbe4e2;--pos:#2a9d6f;--neu:#9aa8ab;--neg:#d4503f;--acc:#1f6f8b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10191c;--card:#18262a;--ink:#e6efee;--mute:#92a6aa;--line:#2a3d42;--pos:#3fc08c;--neu:#7d8e92;--neg:#ee6e5d;--acc:#5bb3d0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.6rem;margin:0 0 4px}h2{font-size:1.05rem;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 18px;max-width:70ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:14px 0}
+.kpi b{display:block;font-size:1.8rem;line-height:1.1}.kpi span{color:var(--mute);font-size:.85rem}
+.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-bottom:14px}
+textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink);font:inherit}
+button,.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer;margin:8px 8px 0 0;display:inline-block}
+button.alt{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.bar{display:flex;height:34px;border-radius:8px;overflow:hidden;margin:6px 0 10px}
+.bar div{display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;min-width:0}
+.key span{margin-right:14px;font-size:.85rem}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:.9rem}
+.row i{display:block;height:14px;border-radius:4px}.row em{min-width:80px;font-style:normal}
+.hist{display:flex;align-items:flex-end;gap:3px;height:120px}
+.hist div{flex:1;border-radius:3px 3px 0 0;min-height:2px}
+.axis{display:flex;justify-content:space-between;color:var(--mute);font-size:.75rem}
+#insights li{margin-bottom:6px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tag{padding:2px 8px;border-radius:99px;color:#fff;font-size:.75rem;white-space:nowrap}
+select,input[type=file]{font:inherit;color:var(--ink)}
+.asp{display:grid;grid-template-columns:130px 1fr 60px;gap:8px;align-items:center;margin:8px 0;font-size:.9rem}
+.mini{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--line)}
+.sol{border-left:4px solid var(--neg);padding:8px 12px;margin:10px 0;background:var(--bg);border-radius:0 8px 8px 0}
+.sol.ok{border-color:var(--pos)}.sol h3{font-size:.95rem;margin:0 0 4px}.sol ul{margin:4px 0 0;padding-left:18px}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.72rem;color:#fff;margin-left:6px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:0 7px;font-size:.72rem;margin:1px 2px 1px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Aspect-Based Sentiment &amp; Emotion Dashboard</h1>
+<p class="sub">Paste feedback (one item per line) or upload a CSV. The tool finds what people talk about (aspects), how they feel about each one, which emotions they express, and suggests fixes.</p>
+<div class="card">
+<h2>1. Load your data</h2>
+<textarea id="in" aria-label="Text to analyse" placeholder="Paste one review or comment per line..."></textarea>
+<button id="go">Analyse text</button><button class="alt" id="sample">Load sample reviews</button>
+<label class="btn alt" style="margin-top:8px">Upload CSV<input id="file" type="file" accept=".csv,.txt" hidden></label>
+<span id="fmsg" style="color:var(--mute);font-size:.85rem"></span>
+</div>
+<div id="out" hidden>
+<div class="grid kpis" id="kpis"></div>
+<div class="grid two">
+<div class="card"><h2>Sentiment by aspect</h2><div id="asp"></div><div class="key"><span><i class="dot" style="background:var(--pos)"></i>Positive</span><span><i class="dot" style="background:var(--neu)"></i>Neutral</span><span><i class="dot" style="background:var(--neg)"></i>Negative</span></div></div>
+<div class="card"><h2>Emotions detected</h2><div id="emo"></div></div>
+</div>
+<div class="grid two">
+<div class="card"><h2>Insights</h2><ul id="insights" style="padding-left:18px;margin:0"></ul></div>
+<div class="card"><h2>Suggested solutions</h2><div id="sols"></div></div>
+</div>
+<div class="card" style="margin-bottom:14px"><h2>Ask an AI to go deeper</h2>
+<p class="sub" style="margin-bottom:6px">Copy this summary into Claude to get themes and an action plan, then add the answer to your report.</p>
+<textarea id="prompt" readonly style="min-height:90px"></textarea><button id="cp">Copy prompt</button></div>
+<div class="card"><h2>Scored entries</h2>
+<label>Filter: <select id="flt"><option value="all">All</option><option>Positive</option><option>Neutral</option><option>Negative</option></select></label>
+<div class="tw"><table><thead><tr><th>Text</th><th>Score</th><th>Label</th><th>Emotion</th><th>Aspects</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+</div></div>
+<script>
+// ---- Lexicon-based scorer (VADER-style: word valence, negation, intensifiers) ----
+const POS={love:3,loved:3,great:2.5,excellent:3,amazing:3,fantastic:3,awesome:3,good:2,nice:1.5,happy:2.5,helpful:2,friendly:2,fast:1.5,quick:1.5,easy:1.5,perfect:3,best:3,wonderful:3,smooth:1.5,reliable:2,recommend:2,recommended:2,pleased:2,satisfied:2,impressed:2.5,brilliant:3,comfortable:1.5,clean:1.5,value:1.5,delicious:2.5,beautiful:2.5,enjoy:2,enjoyed:2,fine:.8,solid:1.5,superb:3,thanks:1.5,thank:1.5,professional:2,responsive:2,intuitive:2,worth:2,quality:1.5,outstanding:3,thankfully:2,thankful:2,grateful:2,positive:1.2};
+const NEG={bad:-2,terrible:-3,awful:-3,horrible:-3,worst:-3,hate:-3,hated:-3,poor:-2.5,slow:-1.8,broken:-2.5,disappointed:-2.5,disappointing:-2.5,useless:-3,rude:-2.5,expensive:-1.5,overpriced:-2,buggy:-2,crash:-2.5,crashes:-2.5,crashed:-2.5,late:-1.5,delay:-1.5,delayed:-2,dirty:-2,noisy:-1.5,waste:-2.5,refund:-1.5,faulty:-2.5,defective:-2.5,problem:-1.5,problems:-1.5,issue:-1.2,issues:-1.2,annoying:-2,frustrating:-2.5,frustrated:-2.5,confusing:-1.8,difficult:-1.5,unreliable:-2.5,cheap:-1,fail:-2.5,failed:-2.5,never:-.8,complaint:-2,scam:-3.5,ignored:-2.2,worse:-2.5,unhappy:-2.5,missing:-1.5,wrong:-1.8,lost:-1.8,stuck:-1.5,drains:-2.5,slower:-1.8,keeps:-.3,pain:-2.5,painful:-2.5,suffer:-2.5,damaged:-2.5,damage:-2,pricey:-1,skeptical:-1.2,sceptical:-1.2,suspicious:-1.5};
+const LEX=Object.assign({},POS,NEG);
+const NEGATE=new Set(["not","no","never","isnt","wasnt","dont","didnt","cant","wont","doesnt","hardly","without","havent","hasnt","hadnt","wouldnt","couldnt","shouldnt","arent","werent"]);
+const BOOST={very:1.3,really:1.3,extremely:1.5,so:1.2,absolutely:1.5,totally:1.3,incredibly:1.5,slightly:.7,somewhat:.8,barely:.6,severe:1.4,severely:1.4,overwhelmingly:1.4,bit:.8};
+const COGNITIVE=new Set(["thought","think","thinking","suspected","assumed","expected","feared","worried","skeptical","sceptical","doubted","figured","imagined","afraid"]);
+const HYPO=new Set(["if","unless"]);
+const NEGV=["not worth","wasnt worth","isnt worth","waste of money","do not buy","dont buy","would not recommend","wouldnt recommend","never again","want a refund"];
+const POSV=["well worth","worth it","worth every","highly recommend","would recommend","love it","game changer","best purchase"];
+const NEGEMO=new Set(["Anger","Frustration","Disappointment","Worry"]);
+const norm=t=>t.toLowerCase().replace(/\u2019/g,"'").replace(/n't/g,"nt");
+function tokens(t){return norm(t).replace(/[^a-z\s]/g," ").split(/\s+/).filter(Boolean)}
+// Star ratings ("5/5", "4 stars") and verdict phrases ("well worth it") -> -1..1 or null
+function explicit(t){
+  const low=norm(t);let r=null,m=low.match(/\b(\d(?:\.\d)?)\s*\/\s*(5|10)\b/);
+  if(m)r=+m[1]/+m[2]*5;else{m=low.match(/\b(\d(?:\.\d)?)\s*(?:out of 5\s*)?stars?\b|\b(\d(?:\.\d)?) out of 5\b/);if(m)r=+(m[1]||m[2])}
+  if(r!==null&&r>=0&&r<=5)return Math.max(-1,Math.min(1,(r-3)/2));
+  if(NEGV.some(p=>low.includes(p)))return -1;
+  if(POSV.some(p=>low.includes(p)))return 1;
+  return null}
+// Yields [word, previousWords, sentenceWeight, contextWeight]. Later sentences weigh more;
+// words after "if/unless" (hypothetical) or "thought/expected/skeptical" (reported thought) are discounted.
+function* walk(text){
+  const ss=text.split(/(?<=[.!?])\s+|\n+/).filter(s=>s.trim()),S=ss.length?ss:[text],n=S.length;
+  for(let si=0;si<n;si++){const sw=1+(n>1?si/(n-1):0);let hypo=false;
+    for(const seg of S[si].split(/[;,]/)){const tk=tokens(seg);let cog=false;
+      for(let i=0;i<tk.length;i++){const w=tk[i];
+        yield [w,tk.slice(Math.max(0,i-3),i),sw,(hypo?.2:1)*(cog?.3:1)];
+        cog=cog||COGNITIVE.has(w);hypo=hypo||HYPO.has(w)}}}}
+function score(text){
+  let sum=0;const hits=[];
+  for(const [w,win,sw,ctx] of walk(text)){
+    if(!Object.hasOwn(LEX,w))continue;let v=LEX[w];
+    win.forEach(p=>{if(BOOST[p])v*=BOOST[p]});
+    if(win.some(p=>NEGATE.has(p)))v*=-0.75;
+    sum+=v*sw*ctx;hits.push([w,v*ctx])}
+  if(text.includes("!"))sum*=1.1;
+  let c=hits.length?sum/Math.sqrt(sum*sum+8):0;
+  const ex=explicit(text);if(ex!==null)c=.65*ex+.35*c;
+  return{c:Math.max(-1,Math.min(1,c)),hits}}
+const lab=c=>c>=.25?"Positive":c<=-.25?"Negative":"Neutral";
+const COL={Positive:"var(--pos)",Neutral:"var(--neu)",Negative:"var(--neg)"};
+// ---- Aspects: keywords (prefix match) + recommended fixes ----
+const ASP={
+"Customer support":{k:["support","service","agent","helpdesk","team","staff","reply","replied","replies","answer","waited"],fix:["Set a response-time target (e.g. under 24h) and track it","Add auto-acknowledgement emails and a ticket status page","Create a FAQ/chatbot for the most repeated questions"]},
+"Delivery":{k:["deliver","shipping","shipped","package","packaging","arrived","courier","parcel"],fix:["Show realistic delivery windows and live tracking","Review courier performance and switch underperformers","Proactively notify customers about delays"]},
+"Pricing & value":{k:["price","cost","expensive","overpriced","value","cheap","money","worth","afford"],fix:["Benchmark prices against competitors","Offer tiered plans, bundles or loyalty discounts","Communicate value clearly (features, warranty, quality)"]},
+"Product quality":{k:["product","quality","battery","build","material","durab","purchase"],fix:["Run root-cause analysis on defect and battery complaints","Tighten supplier quality checks before dispatch","Offer easy warranty replacement for faulty items"]},
+"App performance":{k:["update","loading","load","crash","software","bug","bugs","buggy","slow","freez","glitch","lag","laggy"],fix:["Prioritise crash and load-time fixes in the next sprint","Add crash reporting and performance monitoring","Beta-test updates with a small user group before release"]},
+"Usability & design":{k:["design","interface","easy","intuitive","navigation","instruction","confus","layout","setup"],fix:["Run quick usability tests on the confusing screens","Add onboarding tips and clearer instructions","Simplify navigation and reduce steps to key tasks"]},
+"Checkout & payment":{k:["checkout","payment","pay","billing","card"],fix:["Audit payment failures and add more payment methods","Allow guest checkout and reduce the number of steps","Show clear error messages with a retry option"]},
+"Returns & refunds":{k:["refund","return"],fix:["Publish a simple, clear refund policy","Automate refund approvals for low-value claims","Give customers status updates during the refund process"]},
+"Subscription & billing":{k:["subscri","premium","trial","cancel","renew","billed","charged","charge","membership","paywall","free","plan","annual","monthly"],fix:["Label free vs premium content clearly and stop gating every tap behind a trial prompt","Show price, trial length and renewal terms before sign-up","Make cancellation and plan changes easy, and send renewal reminders"]},
+"Content & features":{k:["content","meditat","library","feature","filter","search","music","voice","narrat","stories","story","playlist","selection","variety","option"],fix:["Add search and filters (length, voice, music, keyword)","Offer previews so users can sample content before committing","Use usage data and surveys to prioritise new content and features"]},
+"Marketing":{k:["spam","unsubscri","newsletter","promo","promotion","advert","ad","ads","notific","pitch","sales","upsell","marketing"],fix:["Cap email and notification frequency and let users choose topics","Honour unsubscribe requests immediately","Keep promotions out of core use and onboarding"]}};
+const SUF=["s","es","ed","ing","ly","er","d"];
+const hit=(w,k)=>k.length>=5?w.startsWith(k):(w===k||SUF.some(x=>w===k+x));
+// ---- Emotions ----
+const EMO={Joy:["love","happy","great","excellent","amazing","fantastic","awesome","perfect","best","wonderful","enjoy","pleased","brilliant","superb","delight","thank","grateful","worth"],
+Trust:["reliab","recommend","professional","trust","solid","helpful","friendly","responsive","honest","quality","comfortable","intuitive"],
+Anger:["hate","terrible","awful","horrible","rude","scam","worst","ridiculous","ignored","furious"],
+Frustration:["frustrat","annoy","confus","difficult","stuck","crash","slow","buggy","fail","failure","waited","delay","late"],
+Disappointment:["disappoint","poor","waste","unhappy","overpriced","expensive","defective","faulty","worse","drains"],
+Worry:["worri","worry","concern","afraid","unsafe","lost","missing","risk","skeptic","sceptic","suspici"]};
+const ECOL={Joy:"#e0a526",Trust:"#2a9d6f",Anger:"#c0392b",Frustration:"#e67e22",Disappointment:"#7d6bb0",Worry:"#4f7cac"};
+const emMatch=hit;
+function emotion(text,sent){
+  const c={};
+  for(const [w,win,,ctx] of walk(text)){const neg=win.some(p=>NEGATE.has(p));
+    for(const [e,ks] of Object.entries(EMO))if(ks.some(k=>emMatch(w,k))){
+      if(neg){if(e==="Joy"||e==="Trust")c.Disappointment=(c.Disappointment||0)+1}
+      else if(!(ctx<.5&&NEGEMO.has(e)))c[e]=(c[e]||0)+1}}
+  let es=Object.entries(c);
+  if(sent==="Positive")es=es.filter(([e])=>!NEGEMO.has(e));
+  else if(sent==="Negative"){const f=es.filter(([e])=>NEGEMO.has(e));if(f.length)es=f}
+  es.sort((x,y)=>y[1]-x[1]);return{top:es.length?es[0][0]:"Neutral",all:Object.fromEntries(es)}}
+// ---- Aspect scoring: split into clauses, score each clause separately ----
+function aspects(text){
+  const out={};
+  text.split(/[.;!?,]|\bbut\b|\bhowever\b|\balthough\b|\bthough\b|\bwhile\b|\byet\b/i).forEach(cl=>{
+    const tk=tokens(cl);if(!tk.length)return;const c=score(cl).c;
+    for(const[a,o]of Object.entries(ASP))if(tk.some(w=>o.k.some(k=>hit(w,k))))out[a]=(out[a]||[]).concat(c)});
+  return out}
+let DATA=[],AS={},EM={};
+function run(lines){
+  DATA=lines.map(t=>{const r=score(t),e=emotion(t,lab(r.c));return{t,c:r.c,l:lab(r.c),h:r.hits,e:e.top,ea:e.all,a:aspects(t)}});
+  render()}
+function render(){
+  if(!DATA.length)return;document.getElementById("out").hidden=false;
+  const n=DATA.length,cnt={Positive:0,Neutral:0,Negative:0};DATA.forEach(d=>cnt[d.l]++);
+  const avg=DATA.reduce((a,d)=>a+d.c,0)/n,pct=k=>Math.round(cnt[k]/n*100);
+  // aspect stats
+  AS={};DATA.forEach(d=>Object.entries(d.a).forEach(([a,cs])=>cs.forEach(c=>{const s=AS[a]=AS[a]||{n:0,P:0,U:0,N:0,sum:0};s.n++;s.sum+=c;s[c>=.25?"P":c<=-.25?"N":"U"]++})));
+  const A=Object.entries(AS).map(([a,s])=>({a,...s,avg:s.sum/s.n,nShare:s.N/s.n})).sort((x,y)=>y.n-x.n);
+  // emotion stats
+  EM={};DATA.forEach(d=>{if(d.e!=="Neutral")EM[d.e]=(EM[d.e]||0)+1});
+  const E=Object.entries(EM).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("kpis").innerHTML=[["Entries analysed",n],["Positive",pct("Positive")+"%"],["Negative",pct("Negative")+"%"],["Average score",avg.toFixed(2)],["Aspects found",A.length],["Dominant emotion",E.length?E[0][0]:"None"]].map(([a,b])=>`<div class="card kpi"><b style="font-size:${String(b).length>8?"1.2rem":"1.8rem"}">${b}</b><span>${a}</span></div>`).join("");
+  document.getElementById("asp").innerHTML=A.length?A.map(s=>`<div class="asp"><span>${s.a}</span><div class="mini" title="${s.P} positive, ${s.U} neutral, ${s.N} negative"><div style="width:${s.P/s.n*100}%;background:var(--pos)"></div><div style="width:${s.U/s.n*100}%;background:var(--neu)"></div><div style="width:${s.N/s.n*100}%;background:var(--neg)"></div></div><span>${s.avg>0?"+":""}${s.avg.toFixed(2)} (${s.n})</span></div>`).join(""):"<span style='color:var(--mute)'>No known aspects found in this text.</span>";
+  const m=E.length?E[0][1]:1;
+  document.getElementById("emo").innerHTML=E.length?E.map(([e,c])=>`<div class="row"><em style="min-width:110px">${e}</em><i style="width:${c/m*55}%;background:${ECOL[e]}"></i>${c}</div>`).join(""):"<span style='color:var(--mute)'>No strong emotions detected.</span>";
+  // insights
+  const mood=avg>=.25?"clearly positive":avg<=-.25?"clearly negative":avg>.05?"mildly positive":avg<-.05?"mildly negative":"mixed";
+  const ins=[`Overall sentiment is <b>${mood}</b> (average ${avg.toFixed(2)} on a −1 to +1 scale): ${cnt.Positive} positive, ${cnt.Neutral} neutral, ${cnt.Negative} negative.`];
+  const worst=[...A].filter(s=>s.N>0).sort((x,y)=>x.avg-y.avg)[0],best=[...A].filter(s=>s.avg>0).sort((x,y)=>y.avg-x.avg)[0];
+  if(worst)ins.push(`<b>${worst.a}</b> is the weakest area: ${worst.N} of ${worst.n} mentions are negative (average ${worst.avg.toFixed(2)}).`);
+  if(best)ins.push(`<b>${best.a}</b> is the strongest area (average +${best.avg.toFixed(2)}), so protect what works there.`);
+  if(E.length)ins.push(`The leading emotion is <b>${E[0][0]}</b> (${E[0][1]} entries). ${["Anger","Frustration","Disappointment"].includes(E[0][0])?"Negative emotions dominate, which signals churn risk if unresolved.":"This is a healthy sign of customer loyalty."}`);
+  const neg=["Anger","Frustration","Disappointment","Worry"].reduce((a,e)=>a+(EM[e]||0),0);
+  if(neg)ins.push(`${neg} entries (${Math.round(neg/n*100)}%) express a negative emotion, not just a low score, which is a good place to start follow-up.`);
+  const mixed=DATA.filter(d=>Object.values(d.a).flat().some(c=>c>=.25)&&Object.values(d.a).flat().some(c=>c<=-.25)).length;
+  if(mixed)ins.push(`<b>${mixed}</b> entries praise one aspect while criticising another. A single overall score would hide this, which is why aspect-level analysis matters.`);
+  document.getElementById("insights").innerHTML=ins.map(i=>`<li>${i}</li>`).join("");
+  // solutions
+  const prob=A.filter(s=>s.N>0&&s.avg<0).sort((x,y)=>(y.N*-y.avg)-(x.N*-x.avg)),str=A.filter(s=>s.avg>=.25&&s.n>=2).slice(0,2);
+  const pri=s=>s.nShare>=.5&&s.N>=2?["High","var(--neg)"]:s.nShare>=.25?["Medium","#e08a1e"]:["Low","var(--neu)"];
+  document.getElementById("sols").innerHTML=prob.slice(0,4).map(s=>{const[p,c]=pri(s);return`<div class="sol"><h3>${s.a}<span class="pill" style="background:${c}">${p} priority</span></h3><small>${s.N} of ${s.n} mentions negative</small><ul>${ASP[s.a].fix.slice(0,3).map(f=>`<li>${f}</li>`).join("")}</ul></div>`}).join("")+str.map(s=>`<div class="sol ok"><h3>Keep doing: ${s.a}</h3><small>Customers rate this well. Promote it in marketing and share the practice with other teams.</small></div>`).join("")||"<span style='color:var(--mute)'>No problem areas found.</span>";
+  // AI prompt
+  document.getElementById("prompt").value=`I ran aspect-based sentiment analysis on ${n} customer comments. Overall average score: ${avg.toFixed(2)} (-1 to +1).\nAspects (mentions, avg score, negative count): ${A.map(s=>`${s.a} (${s.n}, ${s.avg.toFixed(2)}, ${s.N} neg)`).join("; ")}.\nEmotions: ${E.map(e=>e.join(" ")).join(", ")}.\nMost negative comments: ${[...DATA].sort((a,b)=>a.c-b.c).slice(0,3).map(d=>'"'+d.t+'"').join(" | ")}\nPlease identify the root causes, the three most important actions with expected impact, and any risks in this analysis.`;
+  drawRows()}
+function drawRows(){
+  const f=document.getElementById("flt").value,esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  document.getElementById("rows").innerHTML=DATA.filter(d=>f==="all"||d.l===f).map(d=>`<tr><td>${esc(d.t)}</td><td>${d.c.toFixed(2)}</td><td><span class="tag" style="background:${COL[d.l]}">${d.l}</span></td><td>${d.e}</td><td>${Object.entries(d.a).map(([a,cs])=>{const v=cs.reduce((x,y)=>x+y,0)/cs.length;return`<span class="chip" style="border-color:${COL[lab(v)]}">${a}</span>`}).join("")}</td></tr>`).join("")}
+const SAMPLE=`The app is fantastic, really easy to use and super fast!
+Terrible customer service. I waited three days and nobody replied.
+Delivery was late but the product quality is excellent.
+It's okay. Does the job, nothing special.
+I love the new design, very intuitive and clean.
+The app keeps crashing and it is frustrating. Waste of money.
+Support team was friendly and helpful, solved my problem quickly.
+Not good. The battery drains very fast and the price is too expensive.
+Great value for the price, would recommend to friends.
+Checkout is confusing and the payment failed twice.
+Absolutely perfect, best purchase I have made this year!
+Package arrived on Tuesday.
+Slow loading times and buggy updates, really disappointed.
+Staff were professional and responsive, thank you!
+Not bad at all, actually quite comfortable and reliable.
+The refund process was difficult and nobody answered my emails.
+Smooth setup, excellent instructions, happy with everything.
+Overpriced for what you get, and the quality is poor.
+Delivery was quick and the packaging was clean.
+I hate the new update, everything is slower and confusing.`;
+function parseCSV(txt){
+  const rows=[];let r=[],f="",q=false;
+  for(let i=0;i<txt.length;i++){const ch=txt[i];
+    if(q){if(ch=='"'){if(txt[i+1]=='"'){f+='"';i++}else q=false}else f+=ch}
+    else if(ch=='"')q=true;else if(ch==","){r.push(f);f=""}
+    else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&txt[i+1]=="\n")i++;r.push(f);rows.push(r);r=[];f=""}
+    else f+=ch}
+  if(f||r.length){r.push(f);rows.push(r)}
+  return rows.filter(x=>x.some(c=>c.trim()));
+}
+document.getElementById("go").onclick=()=>run(document.getElementById("in").value.split("\n").map(s=>s.trim()).filter(Boolean));
+document.getElementById("sample").onclick=()=>{document.getElementById("in").value=SAMPLE;run(SAMPLE.split("\n"))};
+document.getElementById("flt").onchange=drawRows;
+document.getElementById("file").onchange=e=>{
+  const fl=e.target.files[0];if(!fl)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const rows=parseCSV(rd.result);let lines;
+    if(rows.length&&rows[0].length>1){
+      const head=rows[0].map(h=>h.toLowerCase());
+      let idx=head.findIndex(h=>/text|review|comment|feedback|content|message|body/.test(h));
+      if(idx<0){idx=0;let best=0;rows[0].forEach((_,i)=>{const L=rows.slice(1,30).reduce((a,r)=>a+(r[i]||"").length,0);if(L>best){best=L;idx=i}})}
+      lines=rows.slice(1).map(r=>(r[idx]||"").trim()).filter(Boolean);
+      document.getElementById("fmsg").textContent=`Using column "${rows[0][idx]}" · ${lines.length} rows`;
+    }else{lines=rows.map(r=>r[0].trim()).filter(Boolean);document.getElementById("fmsg").textContent=`${lines.length} lines loaded`}
+    document.getElementById("in").value=lines.join("\n");
+    run(lines);
+  };
+  rd.readAsText(fl);
+};
+document.getElementById("cp").onclick=()=>{const p=document.getElementById("prompt");p.select();try{navigator.clipboard.writeText(p.value)}catch(e){document.execCommand("copy")}};
+</script>
+</body>
+</html>

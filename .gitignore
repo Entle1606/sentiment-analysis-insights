@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Private or generated data: do not publish customer comments
+*.csv
+*_entries.csv
+*_aspects.csv
+*_aspects.png
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+# The script runs on the Python standard library alone.
+# Optional: only needed for the --out chart (results_aspects.png)
+matplotlib
